@@ -25,7 +25,7 @@
 static struct list ready_list;
 
 /* List of processes in SLEEP state. */
-static struct list wait_list;
+struct list wait_list;
 
 /* List of all processes.  Processes are added to this list
    when they are first scheduled and removed when they exit. */

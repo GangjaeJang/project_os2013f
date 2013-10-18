@@ -17,6 +17,9 @@
 #error TIMER_FREQ <= 1000 recommended
 #endif
 
+// declares extern data
+extern struct list wait_list;
+
 /* Number of timer ticks since OS booted. */
 static int64_t ticks;
 
@@ -95,11 +98,10 @@ timer_elapsed (int64_t then)
 
 /* for sleep queue's efficiency, we insert items orderly.(less wake-up-time sequence)
    this function is used in list_insert_ordered function. */
-static bool
-less_wake_time (struct list_elem *elem_1, struct list_elem *elem_2, void *aux temp)
-{
-  struct thread *thread_1 = list_entry(elem_1, struct thread, elem);
-  struct thread *thread_2 = list_entry(elem_2, struct thread, elem);
+bool
+less_wake_time (const struct list_elem *elem_1, const struct list_elem *elem_2, void *aux UNUSED) {
+  const struct thread *thread_1 = list_entry(elem_1, struct thread, elem);
+  const struct thread *thread_2 = list_entry(elem_2, struct thread, elem);
   
   return(thread_1->se.wake_up_tick < thread_2->se.wake_up_tick);
 }
@@ -137,13 +139,14 @@ timer_sleep (int64_t ticks)
    will be used in timer-interrupt */
 void
 timer_wake_up(void) {
-  struct thread *t = list_entry(list_front(&wait_list), struct thread, elem);
+  struct thread *t;
 
-  while(list_empty(&wait_list)) {
+  while(!list_empty(&wait_list)) {
+    t = list_entry(list_front(&wait_list), struct thread, elem);
     // after enough sleep time
-    if(ticks >= t->wake_up_tick) {
+    if(ticks >= t->se.wake_up_tick) {
       // removes from sleep queue
-      list_pop_front(&sleep_list);
+      list_pop_front(&wait_list);
       // unblocks and pushes to ready queue
       thread_unblock(t);
     }
