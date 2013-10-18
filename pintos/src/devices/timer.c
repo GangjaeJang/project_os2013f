@@ -93,6 +93,17 @@ timer_elapsed (int64_t then)
   return timer_ticks () - then;
 }
 
+/* for sleep queue's efficiency, we insert items orderly.(less wake-up-time sequence)
+   this function is used in list_insert_ordered function. */
+static bool
+less_wake_time (struct list_elem *elem_1, struct list_elem *elem_2, void *aux temp)
+{
+  struct thread *thread_1 = list_entry(elem_1, struct thread, elem);
+  struct thread *thread_2 = list_entry(elem_2, struct thread, elem);
+  
+  return(thread_1->se.wake_up_tick < thread_2->se.wake_up_tick);
+}
+
 /* Sleeps for approximately TICKS timer ticks.  Interrupts must
    be turned on. */
 void
@@ -100,9 +111,47 @@ timer_sleep (int64_t ticks)
 {
   int64_t start = timer_ticks ();
 
-  ASSERT (intr_get_level () == INTR_ON);
-  while (timer_elapsed (start) < ticks) 
-    thread_yield ();
+  //ASSERT (intr_get_level () == INTR_ON);
+
+  struct thread *t = thread_current();
+  enum intr_level old_level;
+   
+  old_level = intr_disable ();
+
+  // sets up wake-up-time
+  t->se.wake_up_tick = start + ticks;
+  // inserts to sleep queue
+  list_insert_ordered(&wait_list, &t->elem, less_wake_time, NULL);
+  // sleeps current thread 
+  thread_block();
+
+  intr_set_level (old_level);
+
+  //while (timer_elapsed (start) < ticks) 
+  //  thread_yield ();
+  
+  return;
+}
+
+/* wakes from enough sleep times.
+   will be used in timer-interrupt */
+void
+timer_wake_up(void) {
+  struct thread *t = list_entry(list_front(&wait_list), struct thread, elem);
+
+  while(list_empty(&wait_list)) {
+    // after enough sleep time
+    if(ticks >= t->wake_up_tick) {
+      // removes from sleep queue
+      list_pop_front(&sleep_list);
+      // unblocks and pushes to ready queue
+      thread_unblock(t);
+    }
+    else
+      break;
+
+    return;
+  }
 }
 
 /* Sleeps for approximately MS milliseconds.  Interrupts must be
@@ -181,6 +230,9 @@ timer_interrupt (struct intr_frame *args UNUSED)
 {
   ticks++;
   thread_tick ();
+
+  // checks sleep queue
+  timer_wake_up();
 }
 
 /* Returns true if LOOPS iterations waits for more than one timer
