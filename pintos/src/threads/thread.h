@@ -119,7 +119,7 @@ extern bool thread_mlfqs;
 void thread_init (void);
 void thread_start (void);
 
-void thread_tick (void);
+void thread_tick (int64_t);
 void thread_print_stats (void);
 
 typedef void thread_func (void *aux);
@@ -132,6 +132,8 @@ struct thread *thread_current (void);
 tid_t thread_tid (void);
 const char *thread_name (void);
 
+void thread_sleep (int64_t);
+void thread_wake_up (int64_t);
 void thread_exit (void) NO_RETURN;
 void thread_yield (void);
 

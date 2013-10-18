@@ -28,6 +28,10 @@ static struct list ready_list;
    when they are first scheduled and removed when they exit. */
 static struct list all_list;
 
+/* List of all wait processes. Processes are added to this list
+   when they get into sleep. */
+static struct list wait_list;
+
 /* Idle thread. */
 static struct thread *idle_thread;
 
@@ -91,6 +95,7 @@ thread_init (void)
 
   lock_init (&tid_lock);
   list_init (&ready_list);
+  list_init (&wait_list);
   list_init (&all_list);
 
   /* Set up a thread structure for the running thread. */
@@ -120,7 +125,7 @@ thread_start (void)
 /* Called by the timer interrupt handler at each timer tick.
    Thus, this function runs in an external interrupt context. */
 void
-thread_tick (void) 
+thread_tick (int64_t ticks) 
 {
   struct thread *t = thread_current ();
 
@@ -133,6 +138,9 @@ thread_tick (void)
 #endif
   else
     kernel_ticks++;
+
+  /* Wakes up threads */
+  thread_wake_up(ticks);
 
   /* Enforce preemption. */
   if (++thread_ticks >= TIME_SLICE)
@@ -283,6 +291,67 @@ thread_tid (void)
   return thread_current ()->tid;
 }
 
+/* For wait queue's efficiency, insertion to wait queue is done by
+  increading order on wake up tick */
+bool
+wake_up_tick_cmp (const struct list_elem *elem_1, const struct list_elem *elem_2, void *aux UNUSED)
+{
+  struct thread *thread_1 = list_entry(elem_1, struct thread, elem);
+  struct thread *thread_2 = list_entry(elem_2, struct thread, elem);
+  return (thread_1->se.wake_up_tick < thread_2->se.wake_up_tick);
+}
+
+/* Make this thread to sleep.*/
+void
+thread_sleep (int64_t wake_up_tick)
+{
+  struct thread *cur = thread_current();
+  enum intr_level old_level;
+
+  ASSERT (!intr_context ());
+
+  old_level = intr_disable();
+  
+  // Sets up wake up time.
+  cur->se.wake_up_tick = wake_up_tick;
+
+  // Inserts the thread elem to wait_list.
+  list_insert_ordered(&wait_list, &cur->elem, wake_up_tick_cmp, NULL);
+
+  // Blocks the current thread.
+  thread_block();
+
+  intr_set_level (old_level);
+
+  return;
+}
+
+/* Wakes up threads in timer interrupt context. */
+void thread_wake_up (int64_t current_ticks)
+{
+  struct thread *t;
+
+  ASSERT (intr_context ());
+
+  while (!list_empty(&wait_list))
+    {
+      t = list_entry(list_front(&wait_list), struct thread, elem);
+
+      // Tests whether wake up time exceeded
+      if (current_ticks >= t->se.wake_up_tick)
+      {
+        // Pops from the wait list
+        list_pop_front(&wait_list);
+
+        // Makes the thread ready to run
+        thread_unblock(t);
+      }
+      else break;
+    }
+
+  return;
+}
+  
 /* Deschedules the current thread and destroys it.  Never
    returns to the caller. */
 void
