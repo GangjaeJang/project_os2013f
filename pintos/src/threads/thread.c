@@ -556,7 +556,7 @@ schedule_tail (struct thread *prev)
    running to some other state.  This function finds another
    thread to run and switches to it.
 
-   It's not safe to call printf() until sleepule_tail() has
+   It's not safe to call printf() until schedule_tail() has
    completed. */
 static void
 schedule (void) 
