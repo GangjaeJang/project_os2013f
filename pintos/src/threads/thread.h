@@ -24,6 +24,12 @@ typedef int tid_t;
 #define PRI_DEFAULT 31                  /* Default priority. */
 #define PRI_MAX 63                      /* Highest priority. */
 
+/* A schedule entity for scheduling */
+struct schedule_entity {
+	/* if this thread is sleeping, specify wake up time in units of ticks */
+	int64_t wake_up_tick;
+};
+
 /* A kernel thread or user process.
 
    Each thread structure is stored in its own 4 kB page.  The
@@ -90,6 +96,9 @@ struct thread
     int priority;                       /* Priority. */
     struct list_elem allelem;           /* List element for all threads list. */
 
+	/* For Scheduling */
+	struct schedule_entity se;
+
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
 
@@ -110,7 +119,7 @@ extern bool thread_mlfqs;
 void thread_init (void);
 void thread_start (void);
 
-void thread_tick (void);
+void thread_tick (int64_t);
 void thread_print_stats (void);
 
 typedef void thread_func (void *aux);
@@ -123,6 +132,8 @@ struct thread *thread_current (void);
 tid_t thread_tid (void);
 const char *thread_name (void);
 
+void thread_sleep (int64_t);
+void thread_wake_up (int64_t);
 void thread_exit (void) NO_RETURN;
 void thread_yield (void);
 
