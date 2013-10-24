@@ -17,7 +17,7 @@ test_wfq_fairness (void)
   /* Can configure test data.
    * fairness(threads) : 10(10), 20(9), 30(8), 40(7), 50(6)
    * iteration : positive integer */
-  test_fairness(40, 10);
+  test_fairness(30, 20);
 }
 
 void

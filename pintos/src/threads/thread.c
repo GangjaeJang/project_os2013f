@@ -282,7 +282,7 @@ thread_name (void)
   return thread_current ()->name;
 }
 
-/* Returns running time */
+/* Returns running time. */
 long
 thread_runtime(void)
 {
