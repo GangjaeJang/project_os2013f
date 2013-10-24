@@ -121,6 +121,7 @@ void thread_unblock (struct thread *);
 struct thread *thread_current (void);
 tid_t thread_tid (void);
 const char *thread_name (void);
+long thread_runtime(void);
 
 void thread_sleep (int64_t);
 void thread_wake_up (int64_t);

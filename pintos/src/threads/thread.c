@@ -148,7 +148,11 @@ thread_tick (int64_t ticks)
   else
     kernel_ticks++;
 
-  /* Wakes up threads */
+  /* Updates execution time when thread is running. */
+  if (t->status == THREAD_RUNNING)
+    t->se.sum_runtime++;
+
+  /* Wakes up threads. */
   thread_wake_up(ticks);
 
   /* Enforce preemption. */
@@ -276,6 +280,13 @@ const char *
 thread_name (void) 
 {
   return thread_current ()->name;
+}
+
+/* Returns running time */
+long
+thread_runtime(void)
+{
+  return thread_current()->se.sum_runtime;
 }
 
 /* Returns the running thread.
